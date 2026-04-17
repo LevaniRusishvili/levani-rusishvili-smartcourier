@@ -1,13 +1,14 @@
+// api.js
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "https://your-backend.com/api",
+  baseURL: "http://localhost:5000/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// optional: token interceptor (მნიშვნელოვანი მომავალში)
+// ავტომატურად ამატებს token-ს ყველა request-ზე
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 

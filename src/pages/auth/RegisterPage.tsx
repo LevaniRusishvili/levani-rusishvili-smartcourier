@@ -1,42 +1,49 @@
+import { useState } from "react";
 import { BaseForm } from "../../shared/ui/BaseForm/BaseForm";
+import {
+  adminFields,
+  userFields,
+  courierFields,
+} from "../../features/auth/register/roleTemplates";
+import { registerApi } from "../../features/auth/api";
 import type { Field } from "../../shared/ui/BaseForm/types";
 
-const adminFields: Field[] = [
-  { name: "firstName", label: "First Name", type: "text", required: true },
-  { name: "lastName", label: "Last Name", type: "text", required: false },
-  { name: "pid", label: "PID", type: "text", required: true },
-  { name: "phoneNumber", label: "Phone Number", type: "text", required: true },
-  { name: "email", label: "Email", type: "email", required: true },
-  { name: "password", label: "Password", type: "password", required: true },
-  {
-    name: "profileImage",
-    label: "Profile Image",
-    type: "file",
-    required: false,
-  },
-  {
-    name: "role",
-    label: "Role",
-    type: "select",
-    required: true,
-    options: [
-      { label: "Admin", value: "admin" },
-      { label: "User", value: "user" },
-      { label: "Courier", value: "courier" },
-    ],
-  },
-];
-
 export default function RegisterPage() {
-  const handleSubmit = (data: any) => {
-    console.log("REGISTER DATA:", data);
+  const [role, setRole] = useState<"admin" | "user" | "courier">("user");
+
+  const getFields = (): Field[] => {
+    switch (role) {
+      case "admin":
+        return adminFields ?? [];
+      case "user":
+        return userFields ?? [];
+      case "courier":
+        return courierFields ?? [];
+      default:
+        return [];
+    }
+  };
+
+  const handleSubmit = async (data: any) => {
+    await registerApi({ ...data, role });
+    alert("Registered!");
   };
 
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4">Register</h1>
+    <div className="p-6">
+      <h1 className="text-xl mb-4">Register</h1>
 
-      <BaseForm fields={adminFields} onSubmit={handleSubmit} />
+      <select
+        className="border p-2 mb-4"
+        value={role}
+        onChange={(e) => setRole(e.target.value as any)}
+      >
+        <option value="admin">Admin</option>
+        <option value="user">User</option>
+        <option value="courier">Courier</option>
+      </select>
+
+      <BaseForm fields={getFields()} onSubmit={handleSubmit} />
     </div>
   );
 }
