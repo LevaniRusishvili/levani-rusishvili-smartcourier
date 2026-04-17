@@ -1,67 +1,53 @@
 import { useState } from "react";
-import { useAuthStore } from "../../app/stores/auth.store";
 import { useNavigate } from "react-router-dom";
 import { loginApi } from "../../features/auth/api";
+import { useAuthStore } from "../../app/store/auth.store";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [debug, setDebug] = useState<any>(null); // 👈 ეს დაამატე
-
   const handleLogin = async () => {
-    setDebug("CLICKED"); // 👈
+    const res = await loginApi(email, password);
 
-    try {
-      const res = await loginApi({ email, password });
+    console.log("LOGIN SUCCESS:", res);
 
-      setDebug(res); // 👈 აჩვენებს პასუხს ეკრანზე
+    const user = res.user;
+    const token = res.token;
 
-      login({
-        user: res.user,
-        token: res.accessToken,
-      });
+    login(user, token);
 
-      navigate(`/${res.user.role}`);
-    } catch (e: any) {
-      setDebug(e.response?.data || e.message); // 👈 error-იც გამოჩნდება
-    }
+    if (user.role === "admin") navigate("/admin");
+    else if (user.role === "courier") navigate("/courier");
+    else navigate("/user");
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 gap-4">
-      <div className="bg-white p-6 rounded shadow w-80">
-        <h2 className="text-xl font-bold mb-4">Login</h2>
+    <div className="p-6">
+      <h2>LOGIN</h2>
 
-        <input
-          className="border p-2 w-full mb-3"
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+      <input
+        className="border p-2 block mb-2"
+        placeholder="email"
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
-        <input
-          type="password"
-          className="border p-2 w-full mb-3"
-          placeholder="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+      <input
+        className="border p-2 block mb-2"
+        placeholder="password"
+        type="password"
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
-        <button
-          onClick={handleLogin}
-          className="bg-blue-500 text-white w-full p-2 rounded"
-        >
-          Login
-        </button>
-      </div>
-
-      {/* 🔥 DEBUG BOX */}
-      <div className="bg-black text-green-400 p-4 w-[400px] text-sm rounded">
-        <pre>{JSON.stringify(debug, null, 2)}</pre>
-      </div>
+      <button
+        className="bg-blue-500 text-white px-4 py-2"
+        onClick={handleLogin}
+      >
+        Login
+      </button>
     </div>
   );
 }

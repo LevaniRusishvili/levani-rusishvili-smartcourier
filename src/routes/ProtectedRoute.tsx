@@ -1,17 +1,22 @@
 import { Navigate } from "react-router-dom";
-import { useAuthStore } from "../app/stores/auth.store";
+import { useAuthStore } from "../app/store/auth.store";
 
-export const ProtectedRoute = ({
-  role,
+export default function ProtectedRoute({
   children,
+  role,
 }: {
-  role: "admin" | "user" | "courier";
   children: React.ReactNode;
-}) => {
+  role?: "admin" | "user" | "courier";
+}) {
   const user = useAuthStore((s) => s.user);
 
-  if (!user) return <Navigate to="/login" />;
-  if (user.role !== role) return <Navigate to="/login" />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (role && user.role !== role) {
+    return <Navigate to="/login" replace />;
+  }
 
   return children;
-};
+}

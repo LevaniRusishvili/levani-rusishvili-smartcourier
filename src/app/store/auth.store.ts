@@ -1,10 +1,12 @@
 import { create } from "zustand";
 
-type Role = "admin" | "user" | "courier";
+export type Role = "admin" | "user" | "courier";
 
-type User = {
+export type User = {
   id: number;
   email: string;
+  firstName: string;
+  lastName: string;
   role: Role;
 };
 
@@ -16,33 +18,32 @@ type AuthState = {
   logout: () => void;
 };
 
+const getUserFromStorage = (): User | null => {
+  const raw = localStorage.getItem("user");
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: null,
+  user: getUserFromStorage(),
+  token: localStorage.getItem("accessToken"),
 
   login: (user, token) => {
-    localStorage.setItem("accessToken", token);
     localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("accessToken", token);
 
     set({ user, token });
   },
 
   logout: () => {
-    localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
+    localStorage.removeItem("accessToken");
 
     set({ user: null, token: null });
   },
 }));
-
-export const initAuth = () => {
-  const token = localStorage.getItem("accessToken");
-  const user = localStorage.getItem("user");
-
-  if (!token || !user) return null;
-
-  return {
-    token,
-    user: JSON.parse(user),
-  };
-};

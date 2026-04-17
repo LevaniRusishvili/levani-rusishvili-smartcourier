@@ -1,10 +1,10 @@
 import { create } from "zustand";
-import { createBooking } from "../../features/booking/logic";
+import { hasConflict } from "../../features/booking/logic";
 
 type Booking = {
   id: string;
-  userId: string;
-  courierId: string;
+  userId: number;
+  courierId: number;
   day: string;
   start: string;
   end: string;
@@ -21,11 +21,14 @@ export const useBookingStore = create<State>((set, get) => ({
   addBooking: (b) => {
     const existing = get().bookings;
 
-    const result = createBooking(b, existing);
+    if (hasConflict(b, existing)) {
+      return {
+        success: false,
+        message: "Courier already booked in this time slot",
+      };
+    }
 
-    if (!result.success) return result;
-
-    set({ bookings: result.data });
+    set({ bookings: [...existing, b] });
 
     return { success: true };
   },

@@ -1,41 +1,22 @@
 type Booking = {
   id: string;
-  userId: string;
-  courierId: string;
+  userId: number;
+  courierId: number;
   day: string;
   start: string;
   end: string;
 };
 
-const toMinutes = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
+const toMin = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 };
 
-export const isTimeConflict = (newBooking: Booking, existing: Booking[]) => {
-  return existing.some((b) => {
-    if (b.courierId !== newBooking.courierId) return false;
-    if (b.day !== newBooking.day) return false;
+export const hasConflict = (newB: Booking, list: Booking[]) => {
+  return list.some((b) => {
+    if (b.courierId !== newB.courierId) return false;
+    if (b.day !== newB.day) return false;
 
-    const aStart = toMinutes(newBooking.start);
-    const aEnd = toMinutes(newBooking.end);
-    const bStart = toMinutes(b.start);
-    const bEnd = toMinutes(b.end);
-
-    return aStart < bEnd && bStart < aEnd;
+    return toMin(newB.start) < toMin(b.end) && toMin(b.start) < toMin(newB.end);
   });
-};
-
-export const createBooking = (newBooking: Booking, existing: Booking[]) => {
-  if (isTimeConflict(newBooking, existing)) {
-    return {
-      success: false,
-      message: "Courier is busy at this time",
-    };
-  }
-
-  return {
-    success: true,
-    data: [...existing, newBooking],
-  };
 };

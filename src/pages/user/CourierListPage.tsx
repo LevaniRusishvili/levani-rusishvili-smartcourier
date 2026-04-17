@@ -1,19 +1,17 @@
-import { useBookingStore } from "../../app/stores/booking.store";
-import { useAuthStore } from "../../app/stores/auth.store";
+import { useBookingStore } from "../../app/store/booking.store";
+import { useAuthStore } from "../../app/store/auth.store";
 
 const couriers = [
-  {
-    id: "1",
-    name: "Courier A",
-  },
+  { id: 1, name: "Courier A" },
+  { id: 2, name: "Courier B" },
 ];
 
 export default function CourierListPage() {
-  const addBooking = useBookingStore((s) => s.addBooking);
   const user = useAuthStore((s) => s.user);
+  const addBooking = useBookingStore((s) => s.addBooking);
 
-  const handleBook = (courierId: string) => {
-    const result = addBooking({
+  const handleBook = (courierId: number) => {
+    const res = addBooking({
       id: crypto.randomUUID(),
       userId: user!.id,
       courierId,
@@ -22,22 +20,27 @@ export default function CourierListPage() {
       end: "11:00",
     });
 
-    if (!result.success) {
-      alert(result.message);
+    if (!res.success) {
+      alert(res.message);
     } else {
-      alert("Booked successfully");
+      alert("Booked successfully ✔");
     }
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Couriers</h2>
+    <div className="p-6 space-y-3">
+      <h1 className="text-xl font-bold">Couriers</h1>
 
       {couriers.map((c) => (
-        <div key={c.id} style={{ border: "1px solid gray", margin: 10 }}>
-          <h3>{c.name}</h3>
+        <div key={c.id} className="border p-3 rounded flex justify-between">
+          <span>{c.name}</span>
 
-          <button onClick={() => handleBook(c.id)}>Book Courier</button>
+          <button
+            className="bg-blue-500 text-white px-3 py-1 rounded"
+            onClick={() => handleBook(c.id)}
+          >
+            Book
+          </button>
         </div>
       ))}
     </div>

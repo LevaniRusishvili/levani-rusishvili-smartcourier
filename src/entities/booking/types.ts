@@ -1,7 +1,7 @@
 export type Booking = {
   id: string;
-  userId: string;
-  courierId: string;
+  userId: number;
+  courierId: number;
   day: string;
   start: string;
   end: string;

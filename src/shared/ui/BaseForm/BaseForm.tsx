@@ -1,21 +1,23 @@
 import { useState } from "react";
-import { FieldRenderer } from "./FieldRenderer";
-import { uploadImage } from "../../../services/cloudinary";
 import type { Field } from "./types";
+import { FieldRenderer } from "./FieldRenderer";
 import { validate } from "./validation";
-export const BaseForm = ({
-  fields,
-  onSubmit,
-}: {
+
+type Props = {
   fields: Field[];
   onSubmit: (data: any) => void;
-}) => {
+};
+
+export const BaseForm = ({ fields, onSubmit }: Props) => {
   const [values, setValues] = useState<any>({});
   const [errors, setErrors] = useState<any>({});
   const [loading, setLoading] = useState(false);
 
   const handleChange = (name: string, value: any) => {
-    setValues((prev: any) => ({ ...prev, [name]: value }));
+    setValues((prev: any) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async () => {
@@ -24,37 +26,39 @@ export const BaseForm = ({
 
     if (Object.keys(errs).length > 0) return;
 
-    let finalData = { ...values };
+    setLoading(true);
 
-    // handle image upload
-    if (values.profileImage instanceof File) {
-      setLoading(true);
-      const res = await uploadImage(values.profileImage);
-      finalData.profileImage = res.secure_url;
+    try {
+      onSubmit(values);
+    } finally {
       setLoading(false);
     }
-
-    onSubmit(finalData);
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {fields.map((f) => (
-        <div key={f.name}>
-          <label>{f.label}</label>
+    <div className="flex flex-col gap-3">
+      {fields.map((field) => (
+        <div key={field.name} className="flex flex-col gap-1">
+          <label className="text-sm font-medium">{field.label}</label>
+
           <FieldRenderer
-            field={f}
-            value={values[f.name]}
-            onChange={(v) => handleChange(f.name, v)}
+            field={field}
+            value={values[field.name]}
+            onChange={(v) => handleChange(field.name, v)}
           />
-          {errors[f.name] && (
-            <div style={{ color: "red" }}>{errors[f.name]}</div>
+
+          {errors[field.name] && (
+            <span className="text-red-500 text-sm">{errors[field.name]}</span>
           )}
         </div>
       ))}
 
-      <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Uploading..." : "Submit"}
+      <button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-blue-500 text-white p-2 rounded mt-3"
+      >
+        {loading ? "Loading..." : "Submit"}
       </button>
     </div>
   );

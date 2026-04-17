@@ -1,20 +1,20 @@
 import type { Field } from "./types";
 
-
-
-export const FieldRenderer = ({
-  field,
-  value,
-  onChange,
-}: {
+type Props = {
   field: Field;
   value: any;
-  onChange: (v: any) => void;
-}) => {
+  onChange: (value: any) => void;
+};
+
+export const FieldRenderer = ({ field, value, onChange }: Props) => {
   switch (field.type) {
     case "select":
       return (
-        <select onChange={(e) => onChange(e.target.value)}>
+        <select
+          className="border p-2 rounded w-full"
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+        >
           <option value="">Select</option>
           {field.options?.map((o) => (
             <option key={o.value} value={o.value}>
@@ -26,12 +26,17 @@ export const FieldRenderer = ({
 
     case "file":
       return (
-        <input type="file" onChange={(e) => onChange(e.target.files?.[0])} />
+        <input
+          type="file"
+          className="border p-2 rounded w-full"
+          onChange={(e) => onChange(e.target.files?.[0])}
+        />
       );
 
     default:
       return (
         <input
+          className="border p-2 rounded w-full"
           type={field.type}
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}

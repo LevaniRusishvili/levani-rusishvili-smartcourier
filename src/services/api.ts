@@ -1,4 +1,3 @@
-// api.js
 import axios from "axios";
 
 export const api = axios.create({
@@ -8,12 +7,17 @@ export const api = axios.create({
   },
 });
 
-// ავტომატურად ამატებს token-ს ყველა request-ზე
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("accessToken");
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  const apiKey = import.meta.env.VITE_API_KEY;
+
+  if (apiKey) {
+    config.headers["x-api-key"] = apiKey;
   }
 
   return config;

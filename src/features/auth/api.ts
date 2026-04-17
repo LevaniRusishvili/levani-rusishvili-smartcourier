@@ -1,11 +1,23 @@
 import { api } from "../../services/api";
 
-export const loginApi = async (data: { email: string; password: string }) => {
-  const res = await api.post("/auth/login", data);
-  return res.data;
-};
+export const loginApi = async (email: string, password: string) => {
+  const { data } = await api.post("/auth/login", {
+    email,
+    password,
+  });
 
-export const registerApi = async (data: any) => {
-  const res = await api.post("/auth/register", data);
-  return res.data;
+  const user = {
+    id: data.user.id,
+    email: data.user.email,
+    firstName: data.user.firstName,
+    lastName: data.user.lastName,
+    role: data.user.role || "user",
+  };
+
+  const token = data.credentials.accessToken;
+
+  localStorage.setItem("accessToken", token);
+  localStorage.setItem("user", JSON.stringify(user));
+
+  return { user, token };
 };
