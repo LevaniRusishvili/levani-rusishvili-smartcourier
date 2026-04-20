@@ -1,24 +1,35 @@
+// src/services/api.ts
 import axios from "axios";
+import { useAuthStore } from "../stores/authStore";
 
-export const api = axios.create({
-  baseURL: "http://localhost:5000/api/v1",
+const BASE_URL =
+  import.meta.env.VITE_BASE_URL || "http://localhost:5000/api/v1";
+const API_KEY = import.meta.env.VITE_API_KEY || "YXBpS2V5U2VjcmV0";
+
+const api = axios.create({
+  baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
+    "x-api-key": API_KEY,
   },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
+api.interceptors.request.use(
+  (config) => {
+    const isAuthEndpoint = config.url?.includes("/auth/");
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+    if (!isAuthEndpoint) {
+      const token = useAuthStore.getState().accessToken;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
 
-  const apiKey = import.meta.env.VITE_API_KEY;
+    config.headers["x-api-key"] = API_KEY;
 
-  if (apiKey) {
-    config.headers["x-api-key"] = apiKey;
-  }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
 
-  return config;
-});
+export default api;
