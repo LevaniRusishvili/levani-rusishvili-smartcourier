@@ -1,0 +1,405 @@
+================================================================================
+                    COURIER STORE (courierStore.ts) - სრული დოკუმენტაცია
+================================================================================
+
+
+📌 WHAT IS COURIERSTORE?
+================================================================================
+CourierStore არის Zustand store, რომელიც მართავს ყველა კურიერის მონაცემებს 
+ადმინის პანელისთვის.
+
+CourierStore ინახავს:
+  • couriers - ყველა კურიერის სია
+  • isLoading - ჩატვირთვის მდგომარეობა
+  • error - შეცდომის ტექსტი
+
+მნიშვნელოვანია: CourierStore **არ არის** იგივე რაც AuthStore-ის user!
+  • AuthStore.user - შეიძლება იყოს კურიერი (თუ კურიერია ლოგინში)
+  • CourierStore.couriers - ყველა კურიერის სია (მხოლოდ ადმინისთვის)
+
+
+================================================================================
+📄 სრული კოდი
+================================================================================
+
+// src/stores/courierStore.ts
+import { create } from "zustand";
+import api from "../services/api";
+import type { Courier } from "../types";
+
+interface CourierState {
+  couriers: Courier[];
+  isLoading: boolean;
+  error: string | null;
+  fetchCouriers: () => Promise<void>;
+  deleteCourier: (id: number) => Promise<void>;
+}
+
+export const useCourierStore = create<CourierState>((set) => ({
+  couriers: [],
+  isLoading: false,
+  error: null,
+
+  fetchCouriers: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await api.get("/couriers");
+      set({ couriers: response.data, isLoading: false });
+    } catch (error) {
+      set({ error: "Failed to fetch couriers", isLoading: false });
+    }
+  },
+
+  deleteCourier: async (id: number) => {
+    try {
+      await api.delete(`/couriers/${id}`);
+      set((state) => ({
+        couriers: state.couriers.filter((courier) => courier.id !== id),
+      }));
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
+  },
+}));
+
+
+================================================================================
+🔷 INTERFACE: CourierState
+================================================================================
+
+interface CourierState {
+  // STATE VARIABLES (მონაცემები)
+  couriers: Courier[];     // ყველა კურიერის სია
+  isLoading: boolean;      // მიმდინარეობს თუ არა ჩატვირთვა
+  error: string | null;    // შეცდომის ტექსტი
+
+  // ACTIONS (ფუნქციები)
+  fetchCouriers: () => Promise<void>;    // კურიერების წამოღება სერვერიდან
+  deleteCourier: (id: number) => Promise<void>;  // კურიერის წაშლა
+}
+
+
+================================================================================
+🏗️ STORE-ის შექმნა
+================================================================================
+
+export const useCourierStore = create<CourierState>((set) => ({
+  couriers: [],           // საწყისი მდგომარეობა - ცარიელი სია
+  isLoading: false,       // თავიდან არაფერი იტვირთება
+  error: null,            // შეცდომა არ არის
+
+  fetchCouriers: async () => { ... },
+  deleteCourier: async (id) => { ... },
+}));
+
+
+================================================================================
+🆚 USERStore vs COURIERStore vs AUTHStore
+================================================================================
+
+┌─────────────────┬─────────────────────────┬────────────────────────────────┐
+│ Store           │ ინახავს                 │ გამოყენება                      │
+├─────────────────┼─────────────────────────┼────────────────────────────────┤
+│ AuthStore       │ მიმდინარე მომხმარებელი  │ ყველგან                        │
+│                 │ (ერთი)                   │                                │
+├─────────────────┼─────────────────────────┼────────────────────────────────┤
+│ UserStore       │ ყველა მომხმარებელი      │ AdminDashboard                 │
+├─────────────────┼─────────────────────────┼────────────────────────────────┤
+│ CourierStore    │ ყველა კურიერი           │ AdminDashboard                 │
+└─────────────────┴─────────────────────────┴────────────────────────────────┘
+
+
+================================================================================
+📥 1. fetchCouriers() - კურიერების წამოღება
+================================================================================
+
+fetchCouriers: async () => {
+  // STEP 1: ჩართე ჩატვირთვის მდგომარეობა
+  set({ isLoading: true });
+  
+  try {
+    // STEP 2: გაგზავნე მოთხოვნა სერვერზე
+    const response = await api.get("/couriers");
+    // api არის axios ინსტანცია (api.ts-დან)
+    // interceptor ავტომატურად ამატებს Authorization header-ს
+    
+    // STEP 3: შეინახე კურიერები store-ში
+    set({ couriers: response.data, isLoading: false });
+    
+  } catch (error) {
+    // STEP 4: შეცდომის დამუშავება
+    set({ error: "Failed to fetch couriers", isLoading: false });
+  }
+}
+
+VISUAL FLOW:
+─────────────────────────────────────────────────────────────────
+  AdminDashboard მონტაჟდება
+         │
+         ↓
+  useEffect(() => { fetchCouriers() }, [])
+         │
+         ↓
+  ┌─────────────────────────────────────────────────────────────┐
+  │ fetchCouriers()                                            │
+  │                                                             │
+  │  set({ isLoading: true })  → UI აჩვენებს "Loading..."     │
+  │         │                                                   │
+  │         ↓                                                   │
+  │  api.get("/couriers")                                      │
+  │         │                                                   │
+  │         ↓                                                   │
+  │  Interceptor: Authorization: Bearer {token}               │
+  │         │                                                   │
+  │         ↓                                                   │
+  │  GET http://localhost:5000/api/v1/couriers                 │
+  │         │                                                   │
+  │         ↓                                                   │
+  │  Backend აბრუნებს:                                        │
+  │  [{ id: 1, name: "Mike", vehicle: "Car" },                 │
+  │   { id: 2, name: "Jane", vehicle: "Motorcycle" }]          │
+  │         │                                                   │
+  │         ↓                                                   │
+  │  set({ couriers: [...], isLoading: false })                │
+  │         │                                                   │
+  │         ↓                                                   │
+  │  UI აჩვენებს კურიერების სიას                              │
+  └─────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+🗑️ 2. deleteCourier() - კურიერის წაშლა
+================================================================================
+
+deleteCourier: async (id: number) => {
+  try {
+    // STEP 1: წაშალე სერვერიდან
+    await api.delete(`/couriers/${id}`);
+    
+    // STEP 2: წაშალე store-დან (optimistic update)
+    set((state) => ({
+      couriers: state.couriers.filter((courier) => courier.id !== id),
+    }));
+    
+  } catch (error) {
+    console.error("Delete failed:", error);
+  }
+}
+
+როგორ მუშაობს filter:
+─────────────────────────────────────────────────────────────────
+  // მაგალითი: couriers = [courier1, courier2, courier3]
+  // id = 2 (მეორე კურიერის წაშლა)
+  
+  state.couriers.filter((courier) => courier.id !== id)
+  
+  courier1.id = 1 → 1 !== 2 → true  → [courier1] რჩება
+  courier2.id = 2 → 2 !== 2 → false → [courier2] იშლება
+  courier3.id = 3 → 3 !== 2 → true  → [courier3] რჩება
+  
+  // შედეგი: [courier1, courier3]
+
+OPTIMISTIC UPDATE:
+─────────────────────────────────────────────────────────────────
+  რა არის optimistic update?
+  
+  • UI განახლდება სანამ სერვერის პასუხი მოვა
+  • მომხმარებელი ხედავს მყისიერ შედეგს
+  • კურიერი მაშინვე ქრება სიიდან
+  • ⚠️ თუ სერვერზე წაშლა ვერ მოხერხდა, UI არასწორი იქნება
+
+
+================================================================================
+📍 სად გამოიყენება CourierStore?
+================================================================================
+
+CourierStore გამოიყენება AdminDashboard-ში (კურიერების ჩანართი):
+
+// AdminDashboard.tsx
+import { useCourierStore } from "../stores/courierStore";
+
+const AdminDashboard = () => {
+  // 1. წამოიღე store-დან საჭირო მონაცემები და ფუნქციები
+  const { couriers, isLoading, fetchCouriers, deleteCourier } = useCourierStore();
+  
+  // 2. კომპონენტის მონტაჟისას ჩატვირთე კურიერები
+  useEffect(() => {
+    fetchCouriers();
+  }, []);
+  
+  // 3. ჩატვირთვისას აჩვენე loading
+  if (isLoading) return <div>Loading...</div>;
+  
+  // 4. აჩვენე კურიერების სია
+  return (
+    <div>
+      {couriers.map(courier => (
+        <div key={courier.id}>
+          {courier.name} - {courier.vehicle}
+          <button onClick={() => deleteCourier(courier.id)}>Delete</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+================================================================================
+🆚 Courier vs User vs Admin (რა განსხვავებაა)
+================================================================================
+
+┌─────────────────┬─────────────────────────┬────────────────────────────────┐
+│ ველი            │ Courier                  │ User                           │
+├─────────────────┼─────────────────────────┼────────────────────────────────┤
+│ role            │ "courier"                │ "user"                         │
+├─────────────────┼─────────────────────────┼────────────────────────────────┤
+│ დამატებითი ველი │ vehicle (მანქანა)        │ address (მისამართი)            │
+│                 │ workingDays (სამუშაო დღეები)│                              │
+└─────────────────┴─────────────────────────┴────────────────────────────────┘
+
+
+================================================================================
+📊 COMPLETE FLOW DIAGRAM
+================================================================================
+
+  კურიერების ჩატვირთვა:
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                                                                          │
+  │  AdminDashboard (Couriers Tab)                                          │
+  │       │                                                                  │
+  │       ↓                                                                  │
+  │  useCourierStore() → { couriers, fetchCouriers }                        │
+  │       │                                                                  │
+  │       ↓                                                                  │
+  │  useEffect(() => { fetchCouriers() }, [])                               │
+  │       │                                                                  │
+  │       ↓                                                                  │
+  │  ┌─────────────────────────────────────────────────────────────────┐    │
+  │  │ courierStore.fetchCouriers()                                    │    │
+  │  │                                                                  │    │
+  │  │   set({ isLoading: true })                                      │    │
+  │  │        │                                                        │    │
+  │  │        ↓                                                        │    │
+  │  │   api.get("/couriers")                                          │    │
+  │  │        │                                                        │    │
+  │  │        ↓                                                        │    │
+  │  │   [axios] → GET /couriers (with token)                         │    │
+  │  │        │                                                        │    │
+  │  │        ↓                                                        │    │
+  │  │   Backend → [{ id, name, vehicle, workingDays }]               │    │
+  │  │        │                                                        │    │
+  │  │        ↓                                                        │    │
+  │  │   set({ couriers: [...], isLoading: false })                   │    │
+  │  │                                                                  │    │
+  │  └─────────────────────────────────────────────────────────────────┘    │
+  │       │                                                                  │
+  │       ↓                                                                  │
+  │  UI აჩვენებს კურიერების სიას                                           │
+  │                                                                          │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+
+  კურიერის წაშლა:
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                                                                          │
+  │  ადმინი აჭერს "Delete" ღილაკს კურიერზე                                 │
+  │       │                                                                  │
+  │       ↓                                                                  │
+  │  deleteCourier(courier.id)                                              │
+  │       │                                                                  │
+  │       ↓                                                                  │
+  │  ┌─────────────────────────────────────────────────────────────────┐    │
+  │  │ courierStore.deleteCourier(id)                                  │    │
+  │  │                                                                  │    │
+  │  │   api.delete(`/couriers/${id}`)                                 │    │
+  │  │        │                                                        │    │
+  │  │        ↓                                                        │    │
+  │  │   [axios] → DELETE /couriers/123 (with token)                  │    │
+  │  │        │                                                        │    │
+  │  │        ↓                                                        │    │
+  │  │   Backend → 200 OK                                             │    │
+  │  │        │                                                        │    │
+  │  │        ↓                                                        │    │
+  │  │   set((state) => ({                                             │    │
+  │  │     couriers: state.couriers.filter(c => c.id !== id)          │    │
+  │  │   }))                                                           │    │
+  │  │                                                                  │    │
+  │  └─────────────────────────────────────────────────────────────────┘    │
+  │       │                                                                  │
+  │       ↓                                                                  │
+  │  კურიერი ქრება სიიდან (UI განახლდება)                                  │
+  │                                                                          │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+📋 API ENDPOINTS (რას იძახებს CourierStore)
+================================================================================
+
+┌─────────────────────┬────────────────────┬────────────────────────────────┐
+│ ფუნქცია            │ HTTP მოთხოვნა       │ რას აკეთებს                   │
+├─────────────────────┼────────────────────┼────────────────────────────────┤
+│ fetchCouriers()     │ GET /couriers       │ ყველა კურიერის წამოღება       │
+├─────────────────────┼────────────────────┼────────────────────────────────┤
+│ deleteCourier(id)   │ DELETE /couriers/:id│ კონკრეტული კურიერის წაშლა   │
+└─────────────────────┴────────────────────┴────────────────────────────────┘
+
+რატომ იყენებს api-ს (axios)?
+─────────────────────────────────────────────────────────────────
+  • interceptor ავტომატურად ამატებს Authorization header-ს
+  • ადმინი უნდა იყოს ავტორიზებული, რომ კურიერები ნახოს
+
+
+================================================================================
+⚠️ პოტენციური პრობლემები
+================================================================================
+
+1. NO PERSIST
+   CourierStore არ იყენებს persist()-ს. გვერდის რეფრეშისას couriers = [].
+   ✅ ეს სწორია, რადგან fetchCouriers() ისევ ჩატვირთავს სიას.
+
+2. ERROR HANDLING არასრული
+   deleteCourier-ში error მხოლოდ console-ში იბეჭდება.
+   ⚠️ ჯობს set({ error: "Delete failed" }) დაამატო.
+
+3. OPTIMISTIC UPDATE - RISK
+   თუ სერვერზე წაშლა ვერ მოხერხდა, UI მაინც აჩვენებს წაშლილს.
+   ⚠️ FIX: await fetchCouriers() წაშლის შემდეგ.
+
+
+================================================================================
+✅ QUICK REFERENCE CARD
+================================================================================
+
+// 1. წამოიღე store
+const { couriers, isLoading, fetchCouriers, deleteCourier } = useCourierStore();
+
+// 2. ჩატვირთვა (კომპონენტის მონტაჟისას)
+useEffect(() => {
+  fetchCouriers();
+}, []);
+
+// 3. loading მდგომარეობა
+if (isLoading) return <Spinner />;
+
+// 4. კურიერების ჩვენება
+{couriers.map(courier => (
+  <div key={courier.id}>
+    {courier.name} - {courier.vehicle}
+    <button onClick={() => deleteCourier(courier.id)}>Delete</button>
+  </div>
+))}
+
+
+================================================================================
+📝 SUMMARY - რა უნდა გახსოვდეს
+================================================================================
+
+• CourierStore ინახავს ყველა კურიერის სიას (მხოლოდ ადმინისთვის)
+• fetchCouriers() - ჩატვირთავს კურიერებს სერვერიდან
+• deleteCourier() - შლის კურიერს (optimistic update)
+• არ იყენებს persist() - მონაცემები ყოველთვის ახლდება სერვერიდან
+• იყენებს api-ს (axios) - interceptor ავტომატურად ამატებს token-ს
+• გამოიყენება AdminDashboard-ის "Couriers" ჩანართში
+
+================================================================================

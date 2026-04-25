@@ -1,0 +1,401 @@
+================================================================================
+                    CALL STORE (callStore.ts) - სრული დოკუმენტაცია
+================================================================================
+
+
+📌 WHAT IS CALLSTORE?
+================================================================================
+CallStore არის Zustand store, რომელიც მართავს ყველა დაჯავშნას (calls/requests) 
+მომხმარებლებსა და კურიერებს შორის.
+
+მონაცემები ინახება ორ ადგილას:
+  1. Zustand store-ში (აპლიკაციის მუშაობის დროს)
+  2. localStorage-ში (გვერდის რეფრეშის შემდეგაც რომ იყოს)
+
+
+================================================================================
+📦 INTERFACE: Call
+================================================================================
+
+export interface Call {
+  id: string;              // უნიკალური ID (იქმნება Date.now()-ით)
+  userId: string;          // მომხმარებლის ID (ვინ დაჯავშნა)
+  userName: string;        // მომხმარებლის სახელი (დისპლეისთვის)
+  courierId: string;       // კურიერის ID (ვის დაუჯავშნა)
+  courierName: string;     // კურიერის სახელი (დისპლეისთვის)
+  date: string;            // თარიღი (ფორმატი: YYYY-MM-DD)
+  time: string;            // დრო (ფორმატი: HH:00)
+  status: "pending" | "confirmed" | "completed" | "cancelled";
+  createdAt: string;       // შექმნის დრო (ISO სტრინგი)
+}
+
+STATUS-ების მნიშვნელობა:
+  • pending    - მომლოდინე (კურიერი ჯერ არ გამოუპასუხებია)
+  • confirmed  - დადასტურებული (კურიერმა მიიღო შეკვეთა)
+  • completed  - შესრულებული (მიწოდება დასრულდა)
+  • cancelled  - გაუქმებული (მომხმარებელმა ან კურიერმა გააუქმა)
+
+
+================================================================================
+🎯 INTERFACE: CallState (Store-ის ტიპი)
+================================================================================
+
+interface CallState {
+  calls: Call[];                                          // ყველა ჯავშნის მასივი
+  
+  addCall: (call: Omit<Call, "id" | "createdAt">) => boolean;  // ახალი ჯავშნის დამატება
+  getCallsByUser: (userId: string) => Call[];            // მომხმარებლის ჯავშნები
+  getCallsByCourier: (courierId: string) => Call[];      // კურიერის ჯავშნები
+  getAllCalls: () => Call[];                             // ყველა ჯავშანი
+  updateCallStatus: (callId: string, status: Call["status"]) => void; // სტატუსის შეცვლა
+  loadCalls: () => void;                                 // ხელით ჩატვირთვა localStorage-დან
+}
+
+Omit<Call, "id" | "createdAt"> ნიშნავს: Call-ის ტიპი, მაგრამ id და createdAt ველების გარეშე.
+ეს იმიტომ, რომ addCall-ის გამოძახებისას მომხმარებელმა არ იცის id და createdAt - 
+ისინი ფუნქციის შიგნით იქმნება ავტომატურად.
+
+
+================================================================================
+💾 HELPER FUNCTIONS (localStorage მენეჯმენტი)
+================================================================================
+
+1. saveToLocalStorage(calls: Call[]): void
+   ─────────────────────────────────────────
+   რას აკეთებს: ინახავს calls-ის მასივს localStorage-ში
+   KEY: "smartcourier_calls"
+   ფორმატი: JSON.stringify(calls)
+   
+   მაგალითი:
+     saveToLocalStorage([{ id: "123", userId: "user1", ... }])
+     → localStorage-ში: "smartcourier_calls": '[{"id":"123","userId":"user1",...}]'
+
+
+2. loadFromLocalStorage(): Call[]
+   ─────────────────────────────────
+   რას აკეთებს: კითხულობს მონაცემებს localStorage-დან
+   რას აბრუნებს: Call[] მასივი, ან ცარიელი [] თუ არაფერია
+   
+   მაგალითი:
+     const calls = loadFromLocalStorage();
+     // calls = [{ id: "123", userId: "user1", ... }] ან []
+
+
+================================================================================
+🏗️ STORE-ის შექმნა
+================================================================================
+
+export const useCallStore = create<CallState>((set, get) => ({
+  calls: loadFromLocalStorage(),    // საწყისი მონაცემები localStorage-დან
+  
+  // ... ფუნქციები (იხილეთ ქვემოთ)
+}));
+
+რა ხდება აპლიკაციის დაწყებისას:
+  1. იძახება loadFromLocalStorage()
+  2. თუ localStorage-ში არის მონაცემები, იტვირთება
+  3. თუ არ არის, calls = []
+
+
+================================================================================
+📞 1. addCall() - ახალი ჯავშნის დამატება
+================================================================================
+
+addCall: (callData) => {
+  const existingCalls = get().calls;
+  
+  // CONFLICT CHECK - ყველაზე მნიშვნელოვანი ნაწილი
+  const hasConflict = existingCalls.some(
+    (call) =>
+      call.courierId === callData.courierId &&  // იგივე კურიერი
+      call.date === callData.date &&            // იგივე დღე
+      call.time === callData.time &&            // იგივე დრო
+      call.status !== "cancelled",              // და არ არის გაუქმებული
+  );
+
+  if (hasConflict) {
+    alert("This time slot is already booked for this courier.");
+    return false;    // ❌ ჯავშანი ვერ დაემატა
+  }
+
+  // ახალი Call-ის შექმნა (id და createdAt იქმნება ავტომატურად)
+  const newCall: Call = {
+    id: Date.now().toString(),                    // უნიკალური ID
+    userId: callData.userId,
+    userName: callData.userName,
+    courierId: callData.courierId,
+    courierName: callData.courierName,
+    date: callData.date,
+    time: callData.time,
+    status: callData.status,
+    createdAt: new Date().toISOString(),
+  };
+
+  const updatedCalls = [...existingCalls, newCall];
+  set({ calls: updatedCalls });          // Store-ის განახლება
+  saveToLocalStorage(updatedCalls);      // localStorage-ის განახლება
+  
+  return true;    // ✅ ჯავშანი წარმატებით დაემატა
+}
+
+CONFLICT CHECK-ის მაგალითი:
+─────────────────────────────────────────────────────────────────
+  არსებული ჯავშნები:
+  [{ courierId: "c123", date: "2026-04-25", time: "14:00", status: "pending" }]
+  
+  ახალი ჯავშანი (იგივე კურიერი, იგივე დღე, იგივე დრო):
+  → CONFLICT! ❌ (alert + return false)
+  
+  ახალი ჯავშანი (სხვა დრო):
+  → NO CONFLICT! ✅ (ემატება)
+
+
+================================================================================
+👤 2. getCallsByUser() - მომხმარებლის ჯავშნები
+================================================================================
+
+getCallsByUser: (userId) => {
+  const allCalls = get().calls;
+  const result = allCalls.filter((call) => call.userId === userId);
+  return result;
+}
+
+რას აკეთებს: აბრუნებს მხოლოდ იმ ჯავშნებს, სადაც userId ემთხვევა.
+
+მაგალითი:
+─────────────────────────────────────────────────────────────────
+  Store-ში: [
+    { id: "1", userId: "user123", courierId: "c456", ... },
+    { id: "2", userId: "user789", courierId: "c456", ... },
+    { id: "3", userId: "user123", courierId: "c111", ... }
+  ]
+  
+  getCallsByUser("user123") → [
+    { id: "1", userId: "user123", ... },
+    { id: "3", userId: "user123", ... }
+  ]
+
+სად გამოიყენება: UserDashboard.tsx - მომხმარებლის ისტორიის საჩვენებლად
+
+
+================================================================================
+🚚 3. getCallsByCourier() - კურიერის ჯავშნები
+================================================================================
+
+getCallsByCourier: (courierId) => {
+  const allCalls = get().calls;
+  const result = allCalls.filter((call) => call.courierId === courierId);
+  return result;
+}
+
+რას აკეთებს: აბრუნებს მხოლოდ იმ ჯავშნებს, სადაც courierId ემთხვევა.
+
+სად გამოიყენება: CourierDashboard.tsx - კურიერის მიღებული შეკვეთების საჩვენებლად
+
+
+================================================================================
+👑 4. getAllCalls() - ყველა ჯავშანი
+================================================================================
+
+getAllCalls: () => {
+  const allCalls = get().calls;
+  return allCalls;
+}
+
+რას აკეთებს: აბრუნებს ყველა ჯავშანს (ფილტრაციის გარეშე).
+
+სად გამოიყენება: AdminDashboard.tsx - ადმინის მიერ ყველა ჯავშნის ნახვისთვის
+
+
+================================================================================
+🔄 5. updateCallStatus() - სტატუსის განახლება
+================================================================================
+
+updateCallStatus: (callId, status) => {
+  const updatedCalls = get().calls.map((call) =>
+    call.id === callId ? { ...call, status } : call
+  );
+  set({ calls: updatedCalls });
+  saveToLocalStorage(updatedCalls);
+}
+
+როგორ მუშაობს map:
+─────────────────────────────────────────────────────────────────
+  ძველი calls: [
+    { id: "123", status: "pending" },
+    { id: "456", status: "pending" }
+  ]
+  
+  updateCallStatus("123", "confirmed")
+  
+  map-ის მუშაობა:
+    call.id === "123"? → YES → { ...call, status: "confirmed" }
+    call.id === "456"? → NO  → call (უცვლელი)
+  
+  ახალი calls: [
+    { id: "123", status: "confirmed" },  ← შეიცვალა
+    { id: "456", status: "pending" }      ← არ შეცვლილა
+  ]
+
+სად გამოიყენება: CourierDashboard.tsx - როცა კურიერი ცვლის შეკვეთის სტატუსს
+
+
+================================================================================
+🔄 6. loadCalls() - ხელით ჩატვირთვა
+================================================================================
+
+loadCalls: () => {
+  const calls = loadFromLocalStorage();
+  set({ calls });
+}
+
+რატომ არის საჭირო:
+  - სხვა ტაბში ან სხვა ადგილას მონაცემების შეცვლის შემდეგ
+  - კომპონენტის მონტაჟისას მონაცემების განახლებისთვის
+
+სად გამოიყენება:
+  - UserDashboard.tsx (useEffect-ში)
+  - CourierDashboard.tsx (useEffect-ში)
+
+
+================================================================================
+🗂️ localStorage-ის სტრუქტურა
+================================================================================
+
+KEY: "smartcourier_calls"
+
+შენახული მონაცემების ფორმატი (JSON):
+
+[
+  {
+    "id": "1734567890123",
+    "userId": "1234567890",
+    "userName": "John Doe",
+    "courierId": "9876543210",
+    "courierName": "Mike Courier",
+    "date": "2026-04-25",
+    "time": "14:00",
+    "status": "pending",
+    "createdAt": "2026-04-23T10:30:00.000Z"
+  },
+  {
+    "id": "1734567890456",
+    "userId": "1234567890",
+    "userName": "John Doe",
+    "courierId": "5555555555",
+    "courierName": "Jane Courier",
+    "date": "2026-04-26",
+    "time": "10:00",
+    "status": "confirmed",
+    "createdAt": "2026-04-23T10:35:00.000Z"
+  }
+]
+
+
+================================================================================
+📊 მონაცემთა სრული ნაკადის დიაგრამა
+================================================================================
+
+  APP BOOT (აპლიკაციის დაწყება)
+  ┌─────────────────────────────────────────────────────────────┐
+  │  useCallStore.create()                                      │
+  │       ↓                                                     │
+  │  loadFromLocalStorage() → reads "smartcourier_calls"       │
+  │       ↓                                                     │
+  │  calls = [...] (initialized)                               │
+  └─────────────────────────────────────────────────────────────┘
+
+  USER BOOKS (მომხმარებელი ჯავშნის დამატება)
+  ┌─────────────────────────────────────────────────────────────┐
+  │  UserDashboard → addCall(callData)                         │
+  │       ↓                                                     │
+  │  conflict check → no conflict                              │
+  │       ↓                                                     │
+  │  newCall created (id + createdAt auto-generated)           │
+  │       ↓                                                     │
+  │  set({ calls: updatedCalls }) → store updates              │
+  │       ↓                                                     │
+  │  saveToLocalStorage() → localStorage updates               │
+  └─────────────────────────────────────────────────────────────┘
+
+  COURIER UPDATES STATUS (კურიერი ცვლის სტატუსს)
+  ┌─────────────────────────────────────────────────────────────┐
+  │  CourierDashboard → updateCallStatus(id, status)           │
+  │       ↓                                                     │
+  │  map() → finds call and updates status                     │
+  │       ↓                                                     │
+  │  set({ calls: updatedCalls }) → store updates              │
+  │       ↓                                                     │
+  │  saveToLocalStorage() → localStorage updates               │
+  └─────────────────────────────────────────────────────────────┘
+
+  ADMIN VIEWS (ადმინი უყურებს ყველა ჯავშანს)
+  ┌─────────────────────────────────────────────────────────────┐
+  │  AdminDashboard → getAllCalls()                            │
+  │       ↓                                                     │
+  │  get().calls → returns all calls from store                │
+  │       ↓                                                     │
+  │  displayed in table                                        │
+  └─────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+📋 ფუნქციების სწრაფი მიმოხილვა
+================================================================================
+
+┌─────────────────────┬─────────────────────────────────┬─────────────────────┐
+│ ფუნქცია            │ რას აკეთებს                     │ სად გამოიყენება     │
+├─────────────────────┼─────────────────────────────────┼─────────────────────┤
+│ addCall()           │ ამატებს ახალ ჯავშანს            │ UserDashboard       │
+│                     │ (conflict check-ით)             │                     │
+├─────────────────────┼─────────────────────────────────┼─────────────────────┤
+│ getCallsByUser()    │ აბრუნებს მომხმარებლის ჯავშნებს │ UserDashboard       │
+├─────────────────────┼─────────────────────────────────┼─────────────────────┤
+│ getCallsByCourier() │ აბრუნებს კურიერის ჯავშნებს    │ CourierDashboard    │
+├─────────────────────┼─────────────────────────────────┼─────────────────────┤
+│ getAllCalls()       │ აბრუნებს ყველა ჯავშანს         │ AdminDashboard      │
+├─────────────────────┼─────────────────────────────────┼─────────────────────┤
+│ updateCallStatus()  │ ცვლის ჯავშნის სტატუსს          │ CourierDashboard    │
+├─────────────────────┼─────────────────────────────────┼─────────────────────┤
+│ loadCalls()         │ ხელით ჩატვირთავს localStorage-დან│ UserDashboard,      │
+│                     │                                 │ CourierDashboard    │
+└─────────────────────┴─────────────────────────────────┴─────────────────────┘
+
+
+================================================================================
+🔧 ტექნიკური დეტალები
+================================================================================
+
+1. ID-ს გენერაცია:
+   id = Date.now().toString()
+   → მაგალითი: "1734567890123" (უნიკალურია, რადგან დრო არასდროს მეორდება)
+
+2. Timestamp-ის გენერაცია:
+   createdAt = new Date().toISOString()
+   → მაგალითი: "2026-04-23T10:30:00.000Z" (ISO ფორმატი)
+
+3. Conflict Check-ის პირობა:
+   იგივე courierId + იგივე date + იგივე time + status != "cancelled"
+
+4. localStorage KEY:
+   "smartcourier_calls" - მთელ აპლიკაციაში ერთი და იგივე
+
+5. Zustand-ის set() და get():
+   - set() - აახლებს store-ს
+   - get() - კითხულობს მიმდინარე store-ს
+
+
+================================================================================
+✅ მოკლე RECAP - რა უნდა გახსოვდეს
+================================================================================
+
+• CallStore მართავს ყველა დაჯავშნას
+• მონაცემები ინახება store-ში და localStorage-ში
+• addCall() ამოწმებს კონფლიქტს - ერთ კურიერს არ შეუძლია ერთსა და იმავე დროს ორი შეკვეთა
+• getCallsByUser() - მომხმარებლის ისტორიისთვის
+• getCallsByCourier() - კურიერის შეკვეთებისთვის
+• getAllCalls() - ადმინის ადმინისტრირებისთვის
+• updateCallStatus() - სტატუსის განახლებისთვის
+• loadCalls() - აიძულებს ხელით ჩატვირთვას localStorage-დან
+
+================================================================================

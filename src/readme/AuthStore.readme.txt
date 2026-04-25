@@ -1,0 +1,201 @@
+export const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      // DATA inside the box
+      user: null,
+      accessToken: null,
+      
+      // ACTIONS that change the data
+      login: async (email, password) => {
+        // ... login logic
+        set({ user: response.user })  // This updates the box
+      },
+      
+      logout: () => {
+        set({ user: null })  // This empties the box
+      }
+    })
+  )
+)
+
+
+  const response = await api.post('/auth/login', { email, password })
+
+
+ // 🟢 ლოგინი წარმატებით დასრულდა
+  set({ 
+    user: response.user,      // user ველი ივსება
+    accessToken: response.credentials.accessToken,
+    isLoading: false          // isLoading ისევ false-დება
+  })
+  // state ახლა: { isLoading: false, user: {...}, accessToken: "...", ... }
+
+
+
+
+
+
+
+
+┌─────────────────────────────────────────────────────────┐
+│                    ZUSTAND STORE                        │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  "auth-storage" (the box)                         │  │
+│  │  ┌─────────────────────────────────────────────┐  │  │
+│  │  │  user: {                                    │  │  │
+│  │  │    firstName: "John",                       │  │  │
+│  │  │    email: "john@test.com",                  │  │  │
+│  │  │    role: "user"                             │  │  │
+│  │  │  },                                          │  │  │
+│  │  │  accessToken: "xyz123..."                   │  │  │
+│  │  └─────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          │ Any component can access
+                          ▼
+        ┌─────────────────┼─────────────────┐
+        │                 │                 │
+        ▼                 ▼                 ▼
+   ┌─────────┐      ┌─────────┐      ┌─────────┐
+   │ Header  │      │ Profile │      │ App.tsx │
+   │ "John"  │      │ "John"  │      │ "user"  │
+   └─────────┘      └─────────┘      └─────────┘
+
+
+
+
+
+┌─────────────────────────────────────────────────────────────┐
+│                    STATE-ის განახლება                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  START STATE:                                                │
+│  ┌────────────────────────────────────────────┐             │
+│  │ { user: null, isLoading: false, error: null } │           │
+│  └────────────────────────────────────────────┘             │
+│                         │                                    │
+│                         ↓                                    │
+│  set({ isLoading: true })                                   │
+│                         │                                    │
+│                         ↓                                    │
+│  ┌────────────────────────────────────────────┐             │
+│  │ { user: null, isLoading: true, error: null }  │           │
+│  └────────────────────────────────────────────┘             │
+│                         │                                    │
+│                         ↓                                    │
+│  set({ user: { name: "John" }, isLoading: false })          │
+│                         │                                    │
+│                         ↓                                    │
+│  ┌────────────────────────────────────────────┐             │
+│  │ { user: { name: "John" }, isLoading: false, error: null } │
+│  └────────────────────────────────────────────┘             │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+
+
+
+
+
+Without persist(), if you refresh the page, the store becomes EMPTY and you're logged out.
+With persist(), the data is saved to localStorage so when you refresh, the store READS the saved data and keeps you logged in.
+
+
+zustand ის store არის react ის გარეთ, ყველა კომპონენტი პირდაპირ უკავშირდება ამ მოდულს.
+set აახლებს სტეიტს, get, იღებს სტეიტს.
+set თითქმის იგივეა როგორც useState მუშაობს. 
+// useState-ში
+const [user, setUser] = useState(null)
+setUser({ name: "Levani" })  // user ხდება { name: "Levani" }
+
+// Zustand-ში
+set({ user: { name: "Levani" } })  // იგივე შედეგი
+აქვს persist() რომელიც ლოკალსთორიჯში შეინახავს მარტივად მონაცემებს.
+
+
+
+
+const useAuthStore = create(     //create არის zustand ჩაშენებული და აბრუნებს ჰუკს 
+  persist(
+    (set) => ({
+      user: null,
+      login: (user) => set({ user })
+    }),
+    {
+      name: "auth-storage"  // localStorage-ის გასაღები
+    }
+  )
+)
+
+// მაგია: ავტომატურად ინახება localStorage-ში!
+// რეფრეშისას ავტომატურად იტვირთება!
+
+
+
+
+
+
+
+
+
+persist(
+  (set, get) => ({ ... }),  // შენი store
+  {
+    name: "auth-storage",    // localStorage-ის key
+    partialize: (state) => ({  // მხოლოდ ეს ველები შეინახე
+      accessToken: state.accessToken,
+      refreshToken: state.refreshToken,
+      user: state.user,
+      registeredRole: state.registeredRole,
+    }),
+  }
+)
+
+
+partialize რატომ არის მნიშვნელოვანი?
+
+isLoading, error არ ინახება (ეს დროებითი მონაცემებია)
+
+მხოლოდ მნიშვნელოვანი მონაცემები ინახება
+
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    PERSIST() MAGIC                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  USER ACTION: LOGIN                                             │
+│       │                                                         │
+│       ↓                                                         │
+│  set({ user: john, accessToken: "xyz" })                       │
+│       │                                                         │
+│       ├──────────────────────┬──────────────────────┐          │
+│       ↓                      ↓                      ↓          │
+│  Zustand Store        localStorage             გვერდის რეფრეში │
+│  იცვლება              ინახება                  როცა მოხდება    │
+│  {user: john}    "auth-storage": {            ↓                 │
+│                   user: john,              Zustand ავტომატურად  │
+│                   accessToken: "xyz"       კითხულობს localStorage-ს│
+│                 }                          და აღადგენს state-ს │
+│                                                                  │
+│  შედეგი: გვერდის რეფრეშის შემდეგაც რჩება ლოგინი!              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+
+
+
+// localStorage.getItem("auth-storage") აბრუნებს:
+{
+  "state": {
+    "user": {
+      "firstName": "John",
+      "email": "john@test.com",
+      "role": "user"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+    "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4=",
+    "registeredRole": "user"
+  },
+  "version": 0
+}

@@ -23,7 +23,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to={`/${role}/dashboard`} />} />
-      <Route path="/login" element={<Navigate to={`/${role}/dashboard`} />} />
+      <Route path="/login" element={<Navigate to={`/${role}/dashboard`} />} />  //თუ უკვე შესულია,  არ აჩვენებს ლოგინის გვერდს და პირდაპირ გადამისამართებს შესაბამის დეშბორდზე
       <Route
         path="/admin/dashboard"
         element={

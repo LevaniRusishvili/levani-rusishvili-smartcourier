@@ -1,0 +1,147 @@
+axios.create გვინდა იმიტომ, რომ ყოველ ჯერზე ხელახლა არ გავუწეროთ header, method, api URL და ა.შედეგი
+// axios.create()-ის გარეშე (ყოველ ჯერზე სრულად უნდა დაწერო)
+axios.get('http://localhost:5000/api/v1/users', {
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': 'YXBpS2V5U2VjcmV0'
+  }
+})
+
+axios.post('http://localhost:5000/api/v1/users', data, {
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': 'YXBpS2V5U2eclV0'
+  }
+})
+
+// axios.create()-ით (ერთხელ კონფიგურაცია, მერე მხოლოდ მოკლედ)
+const api = axios.create({
+  baseURL: 'http://localhost:5000/api/v1',
+  headers: { 'x-api-key': 'YXBpS2V5U2VjcmV0' }
+})
+
+api.get('/users')      // ავტომატურად დაემატება baseURL და headers
+api.post('/users', data)
+
+--------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+const api = axios.create({
+  baseURL: BASE_URL,  
+  headers : {
+  "Content-Type: "application/json,
+  "x-api-key": API_KEY,
+  }
+})
+
+
+
+
+api.interceptors.request.use(
+  (config) => {
+    // არ დაუმატო Authorization header-ი auth endpoints-ებს
+    const isAuthEndpoint = config.url?.includes("/auth/");
+
+    if (!isAuthEndpoint) {
+      // აიღე ტოკენი store-დან
+      const token = useAuthStore.getState().accessToken;  // აბრუნებს accessToken-ს რომელიც შენახულია სთორში 
+
+      if (token) {
+        // დაუმატე Authorization header-ი
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+
+    // API KEY ყოველთვის უნდა იყოს
+    config.headers["x-api-key"] = API_KEY;
+    
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export default api;
+
+------------------------------------------------------------------------------------------------------------------------
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     API.TS - COMPLETE FLOW                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  📦 axios.create()                                                       │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │  baseURL: "http://localhost:5000/api/v1"                       │     │
+│  │  headers: {                                                     │     │
+│  │    "Content-Type": "application/json",                         │     │
+│  │    "x-api-key": "YXBpS2V5U2VjcmV0"                             │     │
+│  │  }                                                              │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                           │                                              │
+│                           │                                              │
+│  🔄 api.interceptors.request.use()                                       │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │                                                                  │     │
+│  │  config = { url: "/resource/users", method: "get", ... }       │     │
+│  │                           │                                      │     │
+│  │                           ↓                                      │     │
+│  │  isAuthEndpoint = config.url.includes("/auth/")                │     │
+│  │                           │                                      │     │
+│  │              ┌────────────┴────────────┐                        │     │
+│  │              │                         │                        │     │
+│  │              ↓                         ↓                        │     │
+│  │         true (auth)                false (resource)             │     │
+│  │              │                         │                        │     │
+│  │              │                         ↓                        │     │
+│  │              │              token = getState().accessToken     │     │
+│  │              │                         │                        │     │
+│  │              │                         ↓                        │     │
+│  │              │              config.headers.Authorization =      │     │
+│  │              │              `Bearer ${token}`                   │     │
+│  │              │                         │                        │     │
+│  │              └────────────┬────────────┘                        │     │
+│  │                           │                                      │     │
+│  │                           ↓                                      │     │
+│  │              config.headers["x-api-key"] = API_KEY              │     │
+│  │                           │                                      │     │
+│  │                           ↓                                      │     │
+│  │              return config  ← გაგრძელდეს მოთხოვნა              │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                           │                                              │
+│                           ↓                                              │
+│  🚀 HTTP REQUEST                                                        │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │  GET http://localhost:5000/api/v1/resource/users              │     │
+│  │  Headers: {                                                     │     │
+│  │    "Content-Type": "application/json",                         │     │
+│  │    "x-api-key": "YXBpS2V5U2VjcmV0",                           │     │
+│  │    "Authorization": "Bearer eyJhbGci..."                       │     │
+│  │  }                                                              │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+
+------------------------------------------------------------------------------------------------------------
+interface AuthState {
+  user: Admin | User | Courier | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isLoading: boolean;
+  error: string | null;
+  registeredRole: string | null;
+
+  login: (email: string, password: string) => Promise<void>;
+  register: (userData: any) => Promise<void>;
+  logout: () => void;
+  updateProfile: (data: Partial<Admin | User | Courier>) => Promise<void>;
+}
+
+
+რომ მივწვდეთ სთორის მონაცემებს უნდა გამოვიძახოთ  useAuthStore.getState.user, 

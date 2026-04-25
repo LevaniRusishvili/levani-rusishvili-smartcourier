@@ -1,0 +1,81 @@
+
+If !user -> <Route path="*" element={<Login />} /> if we have url path that doesn't match any of the pathes we have, go to Login Page
+
+User types in browser	What happens
+localhost:3000/	                 Shows Login (no match)
+localhost:3000/anything	         Shows Login
+localhost:3000/admin/dashboard	 Shows AdminDashboard (if admin)
+localhost:3000/user/profile	     Shows Login (no match, wildcard catches it)
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+if User -> 
+ const role = user.role
+<Route path="/" element={<Navigate to={`/${role}/dashboard`} />} />
+if role = "user" redirect to user/dashboard. same as courier and admin.
+user has role if he was already registered and logged in.
+
+<Route path="/login" element={<Navigate to={`/${role}/dashboard`} />} />
+if user  is already logged in and tries to go to /login, redirect them to their dashboard, because logged-in users shouldn't see the login page
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+<Route
+  path="/admin/dashboard"
+  element={
+    role === "admin" ? (
+      <AdminDashboard />
+    ) : (
+      <Navigate to={`/${role}/dashboard`} />
+    )
+  }
+/>
+Logged in as	Tries to visit	Result
+admin	/admin/dashboard	Shows AdminDashboard 
+user	/admin/dashboard	Redirect to /user/dashboard
+courier	/admin/dashboard	Redirect to /courier/dashboard
+
+same as user and courier
+
+roles are checked because users and couriers should not go in admin dashboard.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+                    USER OPENS WEBSITE
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │  App.tsx checks:       │
+              │  "Is anyone logged in?"│
+              └────────────────────────┘
+                           │
+            ┌──────────────┴──────────────┐
+            │                              │
+            ▼                              ▼
+     ┌──────────┐                   ┌──────────────┐
+     │ NO USER  │                   │ USER EXISTS  │
+     │ Logged in│                   │              │
+     └────┬─────┘                   └──────┬───────┘
+          │                                │
+          ▼                                ▼
+   ┌─────────────┐                  ┌─────────────┐
+   │ Show Login  │                  │ Get user.role│
+   │ Page        │                  │             │
+   └─────────────┘                  └──────┬──────┘
+                                           │
+                    ┌──────────────────────┼──────────────────────┐
+                    │                      │                      │
+                    ▼                      ▼                      ▼
+             ┌───────────┐          ┌───────────┐          ┌───────────┐
+             │ role =    │          │ role =    │          │ role =    │
+             │ "admin"   │          │ "user"    │          │ "courier" │
+             └─────┬─────┘          └─────┬─────┘          └─────┬─────┘
+                   │                      │                      │
+                   ▼                      ▼                      ▼
+            ┌────────────┐         ┌────────────┐         ┌────────────┐
+            │  Admin     │         │   User     │         │  Courier   │
+            │ Dashboard  │         │ Dashboard  │         │ Dashboard  │
+            └────────────┘         └────────────┘         └────────────┘

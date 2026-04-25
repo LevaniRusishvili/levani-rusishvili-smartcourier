@@ -1,0 +1,44 @@
+┌─────────────────────────────────────────────────────────────────────┐
+│                    COMPLETE APP FLOW                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  USER ACTION                    WHAT HAPPENS                        │
+│  ─────────────────────────────────────────────────────────────────  │
+│                                                                      │
+│  1. Opens website      →    App.tsx checks localStorage             │
+│                           ↓                                          │
+│                        No user → Shows Login page                    │
+│                                                                      │
+│  2. Clicks "Sign in"   →    authStore.login() runs                  │
+│                           ↓                                          │
+│                        api.post("/auth/login")                       │
+│                           ↓                                          │
+│                        Backend returns user + token                  │
+│                           ↓                                          │
+│                        Saved to Zustand store                       │
+│                           ↓                                          │
+│                        localStorage gets updated                    │
+│                           ↓                                          │
+│                        Redirect to /[role]/dashboard                │
+│                                                                      │
+│  3. User books courier →  addCall() checks for conflict             │
+│                           ↓                                          │
+│                        No conflict → Creates new call               │
+│                           ↓                                          │
+│                        Saves to localStorage                        │
+│                           ↓                                          │
+│                        Appears in Courier's dashboard               │
+│                                                                      │
+│  4. Courier confirms   →  updateCallStatus() runs                   │
+│                           ↓                                          │
+│                        Updates status in localStorage               │
+│                           ↓                                          │
+│                        User sees "confirmed" on refresh             │
+│                                                                      │
+│  5. Admin deletes user →  api.delete("/resource/users/:id")         │
+│                           ↓                                          │
+│                        Backend removes user                         │
+│                           ↓                                          │
+│                        Admin fetches fresh list                     │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
